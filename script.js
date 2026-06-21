@@ -126,10 +126,15 @@ async function fetchProducts() {
     try {
         const querySnapshot = await getDocs(collection(db, "products"));
         if (!querySnapshot.empty) {
-            products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+            products = querySnapshot.docs.map(d => ({ id: d.id, ...d.data() }));
         } else {
-            // Fallback to mock data if Firestore is empty
+            console.log("Firestore is empty! Automatically uploading mock data to Firestore...");
+            // Automatically seed the Firestore database
+            for (const p of mockProducts) {
+                await setDoc(doc(db, "products", p.id.toString()), p);
+            }
             products = mockProducts;
+            console.log("Upload complete! Refresh your Firebase Console to see the data.");
         }
     } catch (error) {
         console.error("Error fetching from Firestore, using mock data", error);
