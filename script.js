@@ -1,6 +1,6 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
-import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
 
 // Your Firebase configuration
 const firebaseConfig = {
@@ -269,7 +269,80 @@ document.addEventListener('DOMContentLoaded', () => {
     renderCart();
     
     // Only fetch products if we are on a page that needs them
-    if (document.getElementById('featured-products') || document.getElementById('shop-products') || document.getElementById('product-detail-container')) {
+    if (document.getElementById('featured-products') || document.getElementById('shop-products') || document.getElementById('product-detail-container') || document.getElementById('admin-product-list')) {
         fetchProducts();
     }
 });
+
+// --- Admin Logic ---
+
+// Render Admin Products
+function renderAdminProducts() {
+    const list = document.getElementById('admin-product-list');
+    if (!list) return;
+
+    if (products.length === 0) {
+        list.innerHTML = '<p>No products found.</p>';
+        return;
+    }
+
+    list.innerHTML = products.map(p => `
+        <div class="admin-item">
+            <div class="admin-item-info">
+                <img src="${p.image}" class="admin-item-img">
+                <div>
+                    <strong>${p.title}</strong>
+                    <div style="color: var(--text-muted);">$${Number(p.price).toFixed(2)}</div>
+                </div>
+            </div>
+            <button class="btn btn-outline" style="color: red; border-color: red;" onclick="deleteProduct('${p.id}')">Delete</button>
+        </div>
+    `).join('');
+}
+
+// Global function to delete product
+window.deleteProduct = async function(productId) {
+    if (!confirm("Are you sure you want to delete this product?")) return;
+    try {
+        await deleteDoc(doc(db, "products", productId.toString()));
+        alert("Product deleted!");
+        fetchProducts(); // Refresh list
+    } catch (error) {
+        alert("Error deleting product: " + error.message);
+    }
+}
+
+// Global hook into fetchProducts to also render admin list
+const originalFetchProducts = fetchProducts;
+window.fetchProducts = async function() {
+    await originalFetchProducts();
+    renderAdminProducts();
+}
+
+// Handle Add Product Form
+const addProductForm = document.getElementById('add-product-form');
+if (addProductForm) {
+    addProductForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const title = document.getElementById('admin-title').value;
+        const price = document.getElementById('admin-price').value;
+        const image = document.getElementById('admin-image').value;
+        const description = document.getElementById('admin-desc').value;
+
+        try {
+            await addDoc(collection(db, "products"), {
+                title,
+                price: parseFloat(price),
+                image,
+                description
+            });
+            alert("Product added successfully!");
+            addProductForm.reset();
+            fetchProducts(); // Refresh list
+        } catch (error) {
+            alert("Error adding product: " + error.message);
+        }
+    });
+}
+
