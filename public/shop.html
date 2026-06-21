@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Shop | Aura</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html" class="logo">Aura.</a>
+        <ul class="nav-links">
+            <li><a href="index.html">Home</a></li>
+            <li><a href="shop.html" class="active">Shop</a></li>
+        </ul>
+        <div class="nav-actions">
+            <a href="cart.html" id="cart-link">Cart (0)</a>
+            <a href="login.html" class="btn btn-primary" id="auth-btn">Sign In</a>
+        </div>
+    </nav>
+
+    <main class="container section">
+        <h1 class="section-title">All Products</h1>
+        <div class="grid" id="shop-products">
+            <!-- Products will be injected here via JS -->
+        </div>
+    </main>
+
+    <footer>
+        <!-- Minimal footer for subpages -->
+        <div class="footer-bottom" style="margin-top: 0; padding-top: 2rem;">
+            <p>&copy; 2026 Aura. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script type="module" src="script.js"></script>
+</body>
+</html>
