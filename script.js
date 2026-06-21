@@ -321,15 +321,14 @@ window.fetchProducts = async function() {
 
 // Cloudinary Upload Logic (Signed)
 async function uploadToCloudinary(file) {
-    // Note: To fix 'Invalid cloud_name', verify your Cloud Name (dxrwiwljo) in the Cloudinary Console
-    const cloudName = 'dxrwiwljo'; 
+    const cloudName = 'Root'; 
     const apiKey = '872691561523823';
     const apiSecret = 'Yg9YeZGK2pCmx-ksKV5Iv8Xnjjw';
     
     const timestamp = Math.floor(Date.now() / 1000).toString();
     const strToSign = `timestamp=${timestamp}${apiSecret}`;
     
-    // Generate SHA-1 Signature using Web Crypto API
+
     const encoder = new TextEncoder();
     const data = encoder.encode(strToSign);
     const hashBuffer = await crypto.subtle.digest('SHA-1', data);
