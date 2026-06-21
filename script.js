@@ -1,5 +1,26 @@
-// Mock Product Data
-const products = [
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-auth.js";
+import { getFirestore, collection, getDocs, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.8.1/firebase-firestore.js";
+
+// Your Firebase configuration
+const firebaseConfig = {
+  apiKey: "AIzaSyCNb8N2Kp5jdzy15vet0KxQgj3QeBvYIhI",
+  authDomain: "logintechtank.firebaseapp.com",
+  databaseURL: "https://logintechtank-default-rtdb.firebaseio.com",
+  projectId: "logintechtank",
+  storageBucket: "logintechtank.firebasestorage.app",
+  messagingSenderId: "726773869569",
+  appId: "1:726773869569:web:d570b3f29c2638e05ba400",
+  measurementId: "G-EBSJ3YVY2N"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+
+// Mock Products Fallback
+const mockProducts = [
     {
         id: 1,
         title: "Minimalist Leather Backpack",
@@ -30,8 +51,95 @@ const products = [
     }
 ];
 
-// State Management
+let products = [];
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
+
+// --- Firebase Auth Logic ---
+
+// Listen to Auth State
+onAuthStateChanged(auth, (user) => {
+    const authBtn = document.getElementById('auth-btn');
+    if (!authBtn) return;
+
+    if (user) {
+        // User is signed in
+        authBtn.textContent = "Sign Out";
+        authBtn.href = "#";
+        authBtn.onclick = (e) => {
+            e.preventDefault();
+            signOut(auth).then(() => {
+                window.location.href = "index.html";
+            }).catch((error) => console.error("Sign out error", error));
+        };
+    } else {
+        // User is signed out
+        authBtn.textContent = "Sign In";
+        authBtn.href = "login.html";
+        authBtn.onclick = null;
+    }
+});
+
+// Handle Login
+const loginForm = document.getElementById('login-form');
+if (loginForm) {
+    loginForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        signInWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+                alert("Login successful!");
+                window.location.href = "index.html";
+            })
+            .catch((error) => {
+                alert("Login failed: " + error.message);
+            });
+    });
+}
+
+// Handle Register
+const registerForm = document.getElementById('register-form');
+if (registerForm) {
+    registerForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const name = document.getElementById('name').value;
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        
+        createUserWithEmailAndPassword(auth, email, password)
+            .then((userCredential) => {
+                alert("Account created successfully!");
+                window.location.href = "index.html";
+            })
+            .catch((error) => {
+                alert("Registration failed: " + error.message);
+            });
+    });
+}
+
+
+// --- Products & Cart Logic ---
+
+// Fetch Products from Firestore (or use fallback if DB empty/not setup)
+async function fetchProducts() {
+    try {
+        const querySnapshot = await getDocs(collection(db, "products"));
+        if (!querySnapshot.empty) {
+            products = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+        } else {
+            // Fallback to mock data if Firestore is empty
+            products = mockProducts;
+        }
+    } catch (error) {
+        console.error("Error fetching from Firestore, using mock data", error);
+        products = mockProducts;
+    }
+    
+    // Once fetched, render
+    renderProducts();
+    renderProductDetail();
+}
 
 // Helper to update cart UI
 function updateCartCount() {
@@ -42,12 +150,12 @@ function updateCartCount() {
     }
 }
 
-// Add to Cart
+// Add to Cart (Global function attached to window so inline HTML onclick can use it)
 window.addToCart = function(productId) {
-    const product = products.find(p => p.id === productId);
+    const product = products.find(p => p.id == productId);
     if (!product) return;
 
-    const existing = cart.find(item => item.id === productId);
+    const existing = cart.find(item => item.id == productId);
     if (existing) {
         existing.quantity += 1;
     } else {
@@ -75,8 +183,8 @@ function renderProducts() {
                 <a href="product.html?id=${product.id}">
                     <h3 class="product-title">${product.title}</h3>
                 </a>
-                <div class="product-price">$${product.price.toFixed(2)}</div>
-                <button class="btn btn-outline" style="width: 100%;" onclick="addToCart(${product.id})">Add to Cart</button>
+                <div class="product-price">$${Number(product.price).toFixed(2)}</div>
+                <button class="btn btn-outline" style="width: 100%;" onclick="addToCart('${product.id}')">Add to Cart</button>
             </div>
         </div>
     `).join('');
@@ -88,8 +196,8 @@ function renderProductDetail() {
     if (!container) return;
 
     const urlParams = new URLSearchParams(window.location.search);
-    const productId = parseInt(urlParams.get('id'));
-    const product = products.find(p => p.id === productId);
+    const productId = urlParams.get('id');
+    const product = products.find(p => p.id == productId);
 
     if (!product) {
         container.innerHTML = '<p>Product not found.</p>';
@@ -101,9 +209,9 @@ function renderProductDetail() {
             <img src="${product.image}" alt="${product.title}" class="product-detail-img">
             <div class="product-detail-info">
                 <h1 class="product-detail-title">${product.title}</h1>
-                <div class="product-detail-price">$${product.price.toFixed(2)}</div>
+                <div class="product-detail-price">$${Number(product.price).toFixed(2)}</div>
                 <p class="product-detail-desc">${product.description}</p>
-                <button class="btn btn-primary" onclick="addToCart(${product.id})">Add to Cart</button>
+                <button class="btn btn-primary" onclick="addToCart('${product.id}')">Add to Cart</button>
             </div>
         </div>
     `;
@@ -128,10 +236,10 @@ function renderCart() {
                 <img src="${item.image}" alt="${item.title}" class="cart-item-img">
                 <div>
                     <h4>${item.title}</h4>
-                    <p style="color: var(--text-muted);">$${item.price.toFixed(2)} x ${item.quantity}</p>
+                    <p style="color: var(--text-muted);">$${Number(item.price).toFixed(2)} x ${item.quantity}</p>
                 </div>
             </div>
-            <button class="btn btn-outline" style="padding: 0.5rem 1rem;" onclick="removeFromCart(${item.id})">Remove</button>
+            <button class="btn btn-outline" style="padding: 0.5rem 1rem;" onclick="removeFromCart('${item.id}')">Remove</button>
         </div>
     `).join('');
 
@@ -144,7 +252,7 @@ function renderCart() {
 
 // Remove from Cart
 window.removeFromCart = function(productId) {
-    cart = cart.filter(item => item.id !== productId);
+    cart = cart.filter(item => item.id != productId);
     localStorage.setItem('cart', JSON.stringify(cart));
     updateCartCount();
     renderCart();
@@ -153,7 +261,10 @@ window.removeFromCart = function(productId) {
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
     updateCartCount();
-    renderProducts();
-    renderProductDetail();
     renderCart();
+    
+    // Only fetch products if we are on a page that needs them
+    if (document.getElementById('featured-products') || document.getElementById('shop-products') || document.getElementById('product-detail-container')) {
+        fetchProducts();
+    }
 });
