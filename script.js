@@ -319,6 +319,41 @@ window.fetchProducts = async function() {
     renderAdminProducts();
 }
 
+// Cloudinary Upload Logic (Signed)
+async function uploadToCloudinary(file) {
+    // Note: To fix 'Invalid cloud_name', verify your Cloud Name (dxrwiwljo) in the Cloudinary Console
+    const cloudName = 'dxrwiwljo'; 
+    const apiKey = '872691561523823';
+    const apiSecret = 'Yg9YeZGK2pCmx-ksKV5Iv8Xnjjw';
+    
+    const timestamp = Math.floor(Date.now() / 1000).toString();
+    const strToSign = `timestamp=${timestamp}${apiSecret}`;
+    
+    // Generate SHA-1 Signature using Web Crypto API
+    const encoder = new TextEncoder();
+    const data = encoder.encode(strToSign);
+    const hashBuffer = await crypto.subtle.digest('SHA-1', data);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const signature = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', apiKey);
+    formData.append('timestamp', timestamp);
+    formData.append('signature', signature);
+    
+    const response = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/image/upload`, {
+        method: 'POST',
+        body: formData
+    });
+    
+    const result = await response.json();
+    if (result.error) {
+        throw new Error(result.error.message);
+    }
+    return result.secure_url;
+}
+
 // Handle Add Product Form
 const addProductForm = document.getElementById('add-product-form');
 if (addProductForm) {
@@ -327,14 +362,27 @@ if (addProductForm) {
         
         const title = document.getElementById('admin-title').value;
         const price = document.getElementById('admin-price').value;
-        const image = document.getElementById('admin-image').value;
+        const fileInput = document.getElementById('admin-image');
         const description = document.getElementById('admin-desc').value;
 
+        const file = fileInput.files[0];
+        if (!file) {
+            alert("Please select an image file!");
+            return;
+        }
+
+        const submitBtn = addProductForm.querySelector('button[type="submit"]');
+        const originalText = submitBtn.textContent;
+        submitBtn.textContent = "Uploading image...";
+        submitBtn.disabled = true;
+
         try {
+            const imageUrl = await uploadToCloudinary(file);
+
             await addDoc(collection(db, "products"), {
                 title,
                 price: parseFloat(price),
-                image,
+                image: imageUrl,
                 description
             });
             alert("Product added successfully!");
@@ -342,7 +390,9 @@ if (addProductForm) {
             fetchProducts(); // Refresh list
         } catch (error) {
             alert("Error adding product: " + error.message);
+        } finally {
+            submitBtn.textContent = originalText;
+            submitBtn.disabled = false;
         }
     });
 }
-
